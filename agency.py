@@ -84,3 +84,36 @@ def update_services(conn, agency_id):
 		psycopg2.extras.execute_values(
 			cur, upsert_sql, service_rows
 		)
+
+# Get an agency's current stops, found in each route's "routeConfig" from the nextbus API.
+# Upsert to the postgres database.
+def update_stops(conn, agency_id):
+	# Get all of the agency's routes with their UUIDs.
+	with cur as conn.cursor():
+		cur.execute("SELECT * FROM nextbus.route WHERE agency_id = %s", (agency_id,))
+		routes = cur.fetchall()
+	# Initiate the list that will contain all of the stop tuples.
+	# These will be passed to the mogrify function so that postgis commands can be wrapped around them.
+	stop_rows = []
+	# Initiate the set that will contain all missing stops.
+	missing_stops = set()
+	# For each route, hit the routeConfig API endpoint and get all the stop info contained within.
+	for r in routes:
+		[r_stop_rows, r_missing_stops] = route.get_stops(route = r)
+		stop_rows.extend(r_stop_rows)
+		missing_stops.update(r_missing_stops)
+	# Wrap postgis command around the lon and lat of each stop.
+	stop_rows_str = ','.join(cur.mogrify("(%s, %s, %s, %s, ST_SetSRID(ST_MakePoint(%s, %s), 4326))", i) \
+		for i in stop_rows)
+	# Execute an UPSERT command.
+	# If stop with same location is already in database, update its name.
+	with cur as conn.cursor():
+		cur.execute(
+			"INSERT INTO nextbus.stop (stop_id, route_id, tag, name, location) " \
+			+ "SELECT DISTINCT ON (route_id, tag, location) * " \
+			+ "FROM (VALUES " + stop_rows_str + ") v(stop_id, route_id, tag, name, location) " \
+			+ "ON CONFLICT (route_id, tag, location) " \
+			+ "DO UPDATE SET (name) = (EXCLUDED.name)"
+		)
+	# Return the set of missing stop tuples.
+	return missing_stops
