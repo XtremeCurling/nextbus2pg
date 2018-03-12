@@ -5,7 +5,7 @@ import uuid
 import route
 
 # Get the current "agencyList" from the nextbus API. Upsert to the postgres database.
-def update_agency(conn):
+def update_agencies(conn):
 	# Hit the agencyList endpoint.
 	agency_pq = pq(url = 'http://webservices.nextbus.com/service/publicXMLFeed?command=agencyList')
 	# Format the results as a list of tuples for psycopg2.
@@ -30,7 +30,7 @@ def update_agency(conn):
 		)
 
 # Get an agency's current "routeList" from the nextbus API. Upsert to the postgres database.
-def update_route(conn, agency_id):
+def update_routes(conn, agency_id):
 	# Hit the routeList endpoint.
 	route_pq = pq(
 		url = 'http://webservices.nextbus.com/service/publicXMLFeed?command=routeList&a={0}'.format(agency_id)
@@ -59,7 +59,7 @@ def update_route(conn, agency_id):
 
 # Get an agency's current route "services", found in each route's "routeConfig" from the nextbus API.
 # Upsert to the postgres database.
-def update_service(conn, agency_id):
+def update_services(conn, agency_id):
 	# Get all of the agency's routes with their UUIDs.
 	with cur as conn.cursor():
 		cur.execute("SELECT * FROM nextbus.route WHERE agency_id = %s", (agency_id,))
