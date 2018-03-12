@@ -117,3 +117,45 @@ def update_stops(conn, agency_id):
 		)
 	# Return the set of missing stop tuples.
 	return missing_stops
+
+# From a set of "missing stops", which were included somewhere in a routeConfig XML but not in the body,
+# (1) see if a stop with the same tag exists in the table for a different route, and if so record that
+# stop's name and location info; and otherwise (2) just record the stop with NULL name and location.
+# Then upsert these stops to the postgres database.
+def add_missing_stops(conn, agency_id, missing_stops):
+	# Get the agency's stops with their UUIDs.
+	with cur as conn.cursor():
+		cur.execute(
+			"SELECT stop_id, route_id, stop.tag, stop.name, location FROM " \
+			+ "nextbus.stop INNER JOIN nextbus.route USING (route_id) " \
+			+ "WHERE agency_id = %s " \
+			+ "ORDER BY stop.tag, stop.location", (agency_id,)
+		)
+		stops = cur.fetchall()
+	# Initiate the list that will contain all missing stop rows.
+	missing_stop_rows = []
+	for ms in missing_stops:
+		matching_stop_rows = [s for s in stops if (s[1] == ms[0] and s[2] == ms[1])]
+		# If at least one existing stop matches the missing stop's tag and location,
+		# choose the first such matching stop.
+		if len(matching_stop_rows) > 0:
+			stop_row = matching_stop_rows[0]
+		# Otherwise, create a stop with NULL name and location.
+		else:
+			stop_row = (uuid.uuid4(), ms[0], ms[1], None, None)
+		missing_stop_rows.extend(stop_row)
+	# If there is at least one missing stop, upsert it to the database.
+	if len(missing_stop_rows) > 0:
+		# Create the UPSERT command.
+		# If stop is already in the database, update its name.
+		upsert_sql = '''
+			INSERT INTO nextbus.stop (stop_id, route_id, tag, name, location)
+				VALUES %s
+				ON CONFLICT (route_id, tag, location)
+				DO UPDATE SET (name) = (EXCLUDED.name)
+		'''
+		# Execute the upsert command.
+		with cur as conn.cursor():
+			psycopg2.extras.execute_values(
+				cur, upsert_sql, missing_stop_rows
+			)
