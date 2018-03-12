@@ -2,6 +2,7 @@ from pyquery import PyQuery as pq
 import psycopg2
 import psycopg2.extras
 import uuid
+import route
 
 # Get the current "agencyList" from the nextbus API. Upsert to the postgres database.
 def update_agency(conn):
@@ -54,4 +55,32 @@ def update_route(conn, agency_id):
 	with cur as conn.cursor()
 		psycopg2.extras.execute_values(
 			cur, upsert_sql, route_rows
+		)
+
+# Get an agency's current route "services", found in each route's "routeConfig" from the nextbus API.
+# Upsert to the postgres database.
+def update_service(conn, agency_id):
+	# Get all of the agency's routes with their UUIDs.
+	with cur as conn.cursor():
+		cur.execute("SELECT * FROM nextbus.route WHERE agency_id = %s", (agency_id,))
+		routes = cur.fetchall()
+	# Initiate the list that will contain all of the service rows.
+	service_rows = []
+	# For each route, hit the routeConfig API endpoint and get all the service info contained within.
+	for r in routes:
+		service_rows.extend(route.get_services(route = r))
+	# Create the UPSERT command.
+	# If service is already in database, update its name, direction, and use_for_ui boolean.
+	upsert_sql = '''
+		INSERT INTO nextbus.service (service_id, route_id, tag, name, direction, use_for_ui)
+			VALUES %s
+			ON CONFLICT (route_id, COALESCE(tag, ''))
+			DO UPDATE SET
+				(name, direction, use_for_ui)
+				= (EXCLUDED.name, EXCLUDED.direction, EXCLUDED.use_for_ui)
+	'''
+	# Execute the UPSERT command.
+	with cur as conn.cursor():
+		psycopg2.extras.execute_values(
+			cur, upsert_sql, service_rows
 		)
