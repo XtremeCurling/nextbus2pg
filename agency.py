@@ -149,7 +149,7 @@ def update_stops(conn, agency_id):
 
 # Get an agency's current service stop orders, found in each route's "routeConfig" from the nextbus API.
 # Upsert to the postgres database.
-def get_service_stop_orders(conn, agency_id):
+def update_service_stop_orders(conn, agency_id):
 	# Get all of the agency's routes and services with their UUIDs.
 	with cur as conn.cursor():
 		cur.execute("SELECT * FROM nextbus.route WHERE agency_id = %s", (agency_id,))
