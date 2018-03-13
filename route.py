@@ -41,7 +41,7 @@ def get_stops(route):
 	)
 	# Format the route's stops as a list of tuples for psycopg2.
 	# These will be passed to the mogrify function so that postgis commands can be wrapped around them.
-	stop_args = [(
+	stop_rows = [(
 		uuid.uuid4(),
 		route_id,
 		i.attr('tag'),
@@ -53,9 +53,9 @@ def get_stops(route):
 	# Store them as a set to avoid duplicates.
 	all_stops     = set(i.attr('tag') for i in route_config_pq.items('stop'))
 	missing_stops = set((route_id, s) for s in all_stops \
-		if s not in [sa[2] for sa in stop_args])
-	# Return a list with (1) the stop_args list and (2) the missing_stops set
-	return [stop_args, missing_stops]
+		if s not in [sa[2] for sa in stop_rows])
+	# Return a list with (1) the stop_rows list and (2) the missing_stops set
+	return [stop_rows, missing_stops]
 
 # Get a route's current service stop orders from the "routeConfig" API endpoint.
 # Return them as a list of tuples to be upserted to the database.
