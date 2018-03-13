@@ -102,60 +102,47 @@ def update_stops(conn, agency_id):
 		[r_stop_rows, r_missing_stops] = route.get_stops(route = r)
 		stop_rows.extend(r_stop_rows)
 		missing_stops.update(r_missing_stops)
+	# For each missing stop, first see if any other stops exist with the same tag under a different
+	# route; if so, use that stop's name and location; and if not, create a stop row with NULL name
+	# and location.
+	for ms in missing_stops:
+		matching_stop_rows = [sr for sr in stop_rows if sr[2] == ms[1]]
+		# If at least one existing stop matches the missing stop's tag, use the name and lon/lat
+		# from one of these matching stops.
+		if len(matching_stop_rows) > 0:
+			# Sort so that choice of stop is deterministic.
+			# Sort by (tag, lon, lat, name, route_id).
+			matching_stop_rows.sort(key = lambda sr: (sr[2], sr[4], sr[5], sr[3], sr[1]))
+			matching_stop = matching_stop_rows[0]
+			new_stop_row  = [(
+				uuid.uuid4(),
+				ms[0],
+				ms[1],
+				matching_stop[3],
+				matching_stop[4],
+				matching_stop[5]
+			)]
+		# If no existing stop matches the missing stop's tag, set NULL name and lon/lat.
+		else:
+			new_stop_row = [(
+				uuid.uuid4(),
+				ms[0],
+				ms[1],
+				None,
+				None,
+				None
+			)]
+		stop_rows.extend(new_stop_row)
 	# Wrap postgis command around the lon and lat of each stop.
 	stop_rows_str = ','.join(cur.mogrify("(%s, %s, %s, %s, ST_SetSRID(ST_MakePoint(%s, %s), 4326))", i) \
 		for i in stop_rows)
 	# Execute an UPSERT command.
-	# If stop with same location is already in database, update its name.
+	# If stop with same route, tag, and location is already in database, update its name.
 	with cur as conn.cursor():
 		cur.execute(
 			"INSERT INTO nextbus.stop (stop_id, route_id, tag, name, location) " \
 			+ "SELECT DISTINCT ON (route_id, tag, location) * " \
 			+ "FROM (VALUES " + stop_rows_str + ") v(stop_id, route_id, tag, name, location) " \
-			+ "ON CONFLICT (route_id, tag, location) " \
+			+ "ON CONFLICT (route_id, tag, COALESCE(location, '')) " \
 			+ "DO UPDATE SET (name) = (EXCLUDED.name)"
 		)
-	# Return the set of missing stop tuples.
-	return missing_stops
-
-# From a set of "missing stops", which were included somewhere in a routeConfig XML but not in the body,
-# (1) see if a stop with the same tag exists in the table for a different route, and if so record that
-# stop's name and location info; and otherwise (2) just record the stop with NULL name and location.
-# Then upsert these stops to the postgres database.
-def add_missing_stops(conn, agency_id, missing_stops):
-	# Get the agency's stops with their UUIDs.
-	with cur as conn.cursor():
-		cur.execute(
-			"SELECT stop_id, route_id, stop.tag, stop.name, location FROM " \
-			+ "nextbus.stop INNER JOIN nextbus.route USING (route_id) " \
-			+ "WHERE agency_id = %s " \
-			+ "ORDER BY stop.tag, stop.location", (agency_id,)
-		)
-		stops = cur.fetchall()
-	# Initiate the list that will contain all missing stop rows.
-	missing_stop_rows = []
-	for ms in missing_stops:
-		matching_stop_rows = [s for s in stops if (s[1] == ms[0] and s[2] == ms[1])]
-		# If at least one existing stop matches the missing stop's tag and location,
-		# choose the first such matching stop.
-		if len(matching_stop_rows) > 0:
-			stop_row = matching_stop_rows[0]
-		# Otherwise, create a stop with NULL name and location.
-		else:
-			stop_row = (uuid.uuid4(), ms[0], ms[1], None, None)
-		missing_stop_rows.extend(stop_row)
-	# If there is at least one missing stop, upsert it to the database.
-	if len(missing_stop_rows) > 0:
-		# Create the UPSERT command.
-		# If stop is already in the database, update its name.
-		upsert_sql = '''
-			INSERT INTO nextbus.stop (stop_id, route_id, tag, name, location)
-				VALUES %s
-				ON CONFLICT (route_id, tag, location)
-				DO UPDATE SET (name) = (EXCLUDED.name)
-		'''
-		# Execute the upsert command.
-		with cur as conn.cursor():
-			psycopg2.extras.execute_values(
-				cur, upsert_sql, missing_stop_rows
-			)
