@@ -146,3 +146,34 @@ def update_stops(conn, agency_id):
 			+ "ON CONFLICT (route_id, tag, COALESCE(location, '')) " \
 			+ "DO UPDATE SET (name) = (EXCLUDED.name)"
 		)
+
+# Get an agency's current service stop orders, found in each route's "routeConfig" from the nextbus API.
+# Upsert to the postgres database.
+def get_service_stop_orders(conn, agency_id):
+	# Get all of the agency's routes and services with their UUIDs.
+	with cur as conn.cursor():
+		cur.execute("SELECT * FROM nextbus.route WHERE agency_id = %s", (agency_id,))
+		routes = cur.fetchall()
+		cur.execute(
+			"SELECT service_id, route_id, service.tag, service.name, direction, use_for_ui " \
+			+ "FROM nextbus.service INNER JOIN nextbus.route USING (route_id) " \
+			+ "WHERE agency_id = %s", (agency_id,)
+		)
+		services = cur.fetchall()
+	# Initiate the list that will contain all of the service stop order rows.
+	order_rows = []
+	# For each route, find the order of stops for each service.
+	for r in routes:
+		order_rows.extend(route.get_service_stop_orders(conn = conn, route = r))
+	# Create the UPSERT command.
+	upsert_sql = '''
+		INSERT INTO nextbus.service_stop_order (service_id, stop_id, stop_order, update_timestamp)
+			VALUES %s
+			ON CONFLICT (service_id, stop_order, update_timestamp)
+			DO NOTHING
+	'''
+	# Execute the UPSERT command.
+	with cur as conn.cursor():
+		psycopg2.extras.execute_values(
+			cur, upsert_sql, order_rows
+		)
