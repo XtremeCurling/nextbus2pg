@@ -6,7 +6,7 @@ CREATE SCHEMA IF NOT EXISTS nextbus;
 /*
 Set search_path so that postGIS commands are recognized.
 */
-SET search_path = postgis, nextbus;
+SET search_path = public, postgis, nextbus;
 
 /*
 Create agency table.
