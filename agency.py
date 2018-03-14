@@ -133,12 +133,13 @@ def update_stops(conn, agency_id):
 				None
 			)]
 		stop_rows.extend(new_stop_row)
-	# Wrap postgis command around the lon and lat of each stop.
-	stop_rows_str = ','.join(cur.mogrify("(%s, %s, %s, %s, ST_SetSRID(ST_MakePoint(%s, %s), 4326))", i) \
-		for i in stop_rows)
 	# Execute an UPSERT command.
 	# If stop with same route, tag, and location is already in database, update its name.
 	with cur as conn.cursor():
+		# Wrap postgis command around the lon and lat of each stop.
+		stop_rows_str = ','.join(cur.mogrify(
+			"(%s, %s, %s, %s, ST_SetSRID(ST_MakePoint(%s, %s), 4326))", i
+		) for i in stop_rows)
 		cur.execute(
 			"INSERT INTO nextbus.stop (stop_id, route_id, tag, name, location) " \
 			+ "SELECT DISTINCT ON (route_id, tag, location) * " \
@@ -177,3 +178,74 @@ def update_service_stop_orders(conn, agency_id):
 		psycopg2.extras.execute_values(
 			cur, upsert_sql, order_rows
 		)
+
+# Get and update an agency's vehicle locations by hitting the "vehicleLocations" API endpoint.
+# Insert to the postgres database.
+def update_vehicle_locations(conn, agency_id, previous_requests):
+	# Get all of the agency's routes and services with their UUIDs.
+	with cur as conn.cursor():
+		cur.execute("SELECT * FROM nextbus.route WHERE agency_id = %s", (agency_id,))
+		routes = cur.fetchall()
+		cur.execute(
+			"SELECT service_id, route_id, service.tag, service.name, direction, use_for_ui " \
+			+ "FROM nextbus.service INNER JOIN nextbus.route USING (route_id) " \
+			+ "WHERE agency_id = %s", (agency_id,)
+		)
+		services = cur.fetchall()
+	# Try creating an agency-wide dict from (key) service tag -> (value) service UUID.
+	# TODO: this could fail if a single service tag is used on 2 or more routes. This hasn't been the
+	#   case so far for sf-muni and lametro/lametro-rail. In the future, handle this by writing in
+	#   logic that selects the first agency-wide service UUID for each service tag, after some
+	#   detrministic sorting.
+	service_dict = dict([(serv[2], serv[0]) for serv in services])
+	# Initiate the list of tuples that will contain all routes' vehicle locations.
+	# These will be passed to the mogrify function so that postgis commands can be wrapped around them.
+	vehicle_rows = []
+	# Initiate the dict that will store the API request time for each route.
+	these_requests = dict()
+	for r in routes:
+		# Create a route-specific dict from (key) service tag -> (value) service UUID.
+		route_id = r[0]
+		route_service_dict = dict([(serv[2], serv[0]) for serv in services if serv[1] == route_id])
+		# Get the time of the previous request for this route.
+		# If none can be found, set to 0.
+		try:
+			route_previous_request = previous_requests[route_id]
+		except:
+			route_previous_request = 0
+		# For each route, find the updated vehicle locations. Get also the updated API request times.
+		[route_vehicle_rows, request_time] = get_vehicle_locations(
+			conn = conn, route = r, service_dict = service_dict, \
+			route_service_dict = route_service_dict, previous_request = route_previous_request)
+		# Add these new vehicle rows to the agency-wide list.
+		vehicle_rows.extend(new_vehicle_rows)
+		# Update the previous_requests dict with this latest request time.
+		these_requests[route_id] = request_time
+	# Write the UPSERT command.
+	# The formatted vehicle_rows string will go between upsert_sql_1 and upsert_sql_2.
+	upsert_sql_1 = '''
+		INSERT INTO nextbus_basic.vehicle_location
+		  (service_id, vehicle_tag, vehicle_location, vehicle_direction,
+		   vehicle_speed, location_timestamp, is_predictable)
+		SELECT DISTINCT ON (service_id, vehicle_tag, location_timestamp) *
+		  FROM (VALUES
+	'''
+	# If vehicle location with same service, vehicle tag, and datetime is already in database,
+	#   update the vehicle's location, direction, speed, and is_predictable boolean.
+	upsert_sql_2 = '''
+		) v(service_id, vehicle_tag, vehicle_location, vehicle_direction,
+		    vehicle_speed, location_timestamp, is_predictable)
+		ON CONFLICT (service_id, vehicle_tag, location_timestamp)
+		  DO UPDATE SET (vehicle_location, vehicle_direction, vehicle_speed, is_predictable)
+			= (EXCLUDED.vehicle_location, EXCLUDED.vehicle_direction,
+			   EXCLUDED.vehicle_speed, EXCLUDED.is_predictable)
+	'''
+	with cur as conn.cursor():
+		# Wrap postgis command around the lon and lat of each vehicle.
+		vehicle_rows_str = ','.join(cur.mogrify(
+			"(%s, %s, ST_SetSRID(ST_MakePoint(%s, %s), 4326), %s, %s, %s, %s)", i
+		) for i in vehicle_rows)
+		# Execute the UPSERT command.
+		cur.execute(upsert_sql_1 + vehicle_rows_str + upsert_sql_2)
+	# Return the updated API request epoch times.
+	return these_requests
