@@ -62,7 +62,6 @@ Create stop table.
 The PK `stop_id` is created in a Python script.
 */
 -- A `route_id`, `tag`, and `location` uniquely define a stop.
-SET search_path = public, tiger, postgis, nextbus;
 CREATE TABLE nextbus.stop (
 	stop_id  UUID,
 	route_id UUID,
@@ -80,3 +79,27 @@ CREATE TABLE nextbus.stop (
 -- So, use COALESCE to ensure that no duplicates are entered.
 CREATE UNIQUE INDEX stop_defined_by_route_tag_location_idx
 	ON nextbus.stop (route_id, tag, COALESCE(location, ''));
+
+/*
+Create service_stop_order table.
+This table shows the order in which stops lie on a route-service.
+In case this changes day-to-day, a timestamp is saved on every update.
+*/
+-- A stop's order on a route-service must be positive.
+-- For a given update, a service can't have 2 stops with the same order.
+CREATE TABLE nextbus.service_stop_order (
+	service_id       UUID,
+	stop_id          UUID,
+	stop_order       INTEGER,
+	update_timestamp TIMESTAMP,
+	CONSTRAINT service_stop_match_links_service_fk
+		FOREIGN KEY (service_id)
+		REFERENCES nextbus.service (service_id),
+	CONSTRAINT service_stop_match_links_stop_fk
+		FOREIGN KEY (stop_id)
+		REFERENCES nextbus.stop (stop_id),
+	CONSTRAINT stop_order_is_positive_chk
+		CHECK (stop_order > 0),
+	CONSTRAINT service_has_valid_stop_order_unq
+		UNIQUE (service_id, stop_order, update_timestamp)
+);
