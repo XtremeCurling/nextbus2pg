@@ -56,3 +56,27 @@ CREATE TABLE nextbus.service (
 -- So, use COALESCE to ensure that no duplicates are entered.
 CREATE UNIQUE INDEX service_defined_by_route_and_tag_idx
 	ON nextbus.service (route_id, COALESCE(tag, ''));
+
+/*
+Create stop table.
+The PK `stop_id` is created in a Python script.
+*/
+-- A `route_id`, `tag`, and `location` uniquely define a stop.
+SET search_path = public, tiger, postgis, nextbus;
+CREATE TABLE nextbus.stop (
+	stop_id  UUID,
+	route_id UUID,
+	tag      TEXT,
+	name     TEXT,
+	location GEOMETRY(POINT, 4326),
+	CONSTRAINT stop_pk
+		PRIMARY KEY (stop_id),
+	CONSTRAINT stop_lies_on_route_fk
+		FOREIGN KEY (route_id)
+		REFERENCES nextbus.route (route_id)
+);
+-- Due to error-handling, the Python script might force a stop
+--   with a NULL `location`.
+-- So, use COALESCE to ensure that no duplicates are entered.
+CREATE UNIQUE INDEX stop_defined_by_route_tag_location_idx
+	ON nextbus.stop (route_id, tag, COALESCE(location, ''));
