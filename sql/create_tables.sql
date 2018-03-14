@@ -1,4 +1,9 @@
 /*
+Create the `nextbus` schema if it doesn't already exist.
+*/
+CREATE SCHEMA IF NOT EXISTS nextbus;
+
+/*
 Set search_path so that postGIS commands are recognized.
 */
 SET search_path = postgis, nextbus;
