@@ -221,31 +221,19 @@ def update_vehicle_locations(conn, agency_id, previous_requests):
 		vehicle_rows.extend(new_vehicle_rows)
 		# Update the previous_requests dict with this latest request time.
 		these_requests[route_id] = request_time
-	# Write the UPSERT command.
-	# The formatted vehicle_rows string will go between upsert_sql_1 and upsert_sql_2.
-	upsert_sql_1 = '''
-		INSERT INTO nextbus_basic.vehicle_location
-		  (service_id, vehicle_tag, vehicle_location, vehicle_direction,
-		   vehicle_speed, location_timestamp, is_predictable)
-		SELECT DISTINCT ON (service_id, vehicle_tag, location_timestamp) *
-		  FROM (VALUES
-	'''
-	# If vehicle location with same service, vehicle tag, and datetime is already in database,
-	#   update the vehicle's location, direction, speed, and is_predictable boolean.
-	upsert_sql_2 = '''
-		) v(service_id, vehicle_tag, vehicle_location, vehicle_direction,
-		    vehicle_speed, location_timestamp, is_predictable)
-		ON CONFLICT (service_id, vehicle_tag, location_timestamp)
-		  DO UPDATE SET (vehicle_location, vehicle_direction, vehicle_speed, is_predictable)
-			= (EXCLUDED.vehicle_location, EXCLUDED.vehicle_direction,
-			   EXCLUDED.vehicle_speed, EXCLUDED.is_predictable)
-	'''
 	with cur as conn.cursor():
 		# Wrap postgis command around the lon and lat of each vehicle.
 		vehicle_rows_str = ','.join(cur.mogrify(
 			"(%s, %s, ST_SetSRID(ST_MakePoint(%s, %s), 4326), %s, %s, %s, %s)", i
 		) for i in vehicle_rows)
-		# Execute the UPSERT command.
-		cur.execute(upsert_sql_1 + vehicle_rows_str + upsert_sql_2)
+		# Execute the INSERT command.
+		cur.execute(
+			"INSERT INTO nextbus.vehicle_location " \
+			+ "(service_id, vehicle_tag, vehicle_location, vehicle_direction, " \
+			+ "vehicle_speed, location_timestamp, is_predictable) " \
+			+ "SELECT DISTINCT ON (service_id, vehicle_tag, location_timestamp) * " \
+			+ "FROM (VALUES " + vehicle_rows_str + ") v(service_id, vehicle_tag, vehicle_location, " \
+			+ "vehicle_direction, vehicle_speed, location_timestamp, is_predictable)"
+		)
 	# Return the updated API request epoch times.
 	return these_requests
