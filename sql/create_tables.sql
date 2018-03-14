@@ -83,7 +83,7 @@ CREATE TABLE nextbus.stop (
 --   with a NULL `location`.
 -- So, use COALESCE to ensure that no duplicates are entered.
 CREATE UNIQUE INDEX stop_defined_by_route_tag_location_idx
-	ON nextbus.stop (route_id, tag, COALESCE(location, ''));
+	ON nextbus.stop (route_id, tag, COALESCE(TEXT(location), ''));
 
 /*
 Create service_stop_order table.
