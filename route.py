@@ -11,7 +11,9 @@ def get_services(route):
 	route_tag = route[2]
 	# Hit the routeConfig endpoint.
 	route_config_pq = pq(
-		url = 'http://webservices.nextbus.com/service/publicXMLFeed?command=routeConfig&a={0}&r={1}&verbose=true'.format(agency_id, route_tag)
+		url = 'http://webservices.nextbus.com/service/publicXMLFeed?command=routeConfig&a={0}&r={1}&verbose=true'.format(
+			agency_id, route_tag
+		)
 	)
 	# Format the route's services as a list of tuples for psycopg2.
 	service_rows = [(
@@ -37,7 +39,9 @@ def get_stops(route):
 	route_tag = route[2]
 	# Hit the routeConfig endpoint.
 	route_config_pq = pq(
-		url = 'http://webservices.nextbus.com/service/publicXMLFeed?command=routeConfig&a={0}&r={1}&verbose=true'.format(agency_id, route_tag)
+		url = 'http://webservices.nextbus.com/service/publicXMLFeed?command=routeConfig&a={0}&r={1}&verbose=true'.format(
+			agency_id, route_tag
+		)
 	)
 	# Format the route's stops as a list of tuples for psycopg2.
 	# These will be passed to the mogrify function so that postgis commands can be wrapped around them.
@@ -67,7 +71,9 @@ def get_service_stop_orders(conn, route):
 	now = datetime.datetime.utcnow()
 	# Hit the routeConfig endpoint.
 	route_config_pq = pq(
-		url = 'http://webservices.nextbus.com/service/publicXMLFeed?command=routeConfig&a={0}&r={1}&verbose=true'.format(agency_id, route_tag)
+		url = 'http://webservices.nextbus.com/service/publicXMLFeed?command=routeConfig&a={0}&r={1}&verbose=true'.format(
+			agency_id, route_tag
+		)
 	)
 	# Get all services running on and stops lying on the current route.
 	with cur as conn.cursor():
@@ -96,3 +102,61 @@ def get_service_stop_orders(conn, route):
 		now
 	) for so in stop_orders]
 	return stop_order_rows
+
+# Get a route's current vehicle locations from the "vehicleLocations" API endpoint.
+# Return as a list of tuples to be passed to the mogrify function before being inserted to the database.
+def get_vehicle_locations(conn, route, service_dict, route_service_dict, previous_request):
+	route_id  = route[0]
+	agency_id = route[1]
+	route_tag = route[2]
+	# Hit the vehicleLocations endpoint.
+	vehicle_pq = pq(
+		url = 'http://webservices.nextbus.com/service/publicXMLFeed?command=vehicleLocations&a={0}&r={1}&t={2}'.format(
+			agency_id, route_tag, previous_request
+		)
+	)
+	# Get the time (in epoch microseconds since 1970) of this API request.
+	# This will be returned along with the vehicle locations.
+	this_request = vehicle_pq('lastTime').attr('time')
+	# Convert to a UTC datetime representation. This will be used to populate the location_datetime field.
+	request_datetime = datetime.datetime.utcfromtimestamp(round(float(this_request) / 1000))
+	# Initiate the list of tuples that will contain the route's vehicle locations.
+	vehicle_rows = []
+	# Loop through each vehicle to create its tuple of column values for postgres.
+	for i in vehicle_pq.items('vehicle'):
+		# Match 'dirTag's to service UUIDs as follows:
+		#   (1) Try to find 'dirTag' in the route_service_dict.
+		#   (2) If (1) doesn't work, try to find 'dirTag' in the agency-wide service_dict.
+		#   (3) If (2) doesn't work, skip to the next vehicle in the for loop.
+		try:
+			service_id = route_service_dict[i.attr('dirtag')]
+		except:
+			try:
+				service_id = service_dict[i.attr('dirtag')]
+			except:
+				print(i.attr('dirtag') + " is not a valid service tag for agency " + agency_id)
+				continue
+		# If the speed is not a valid float, set to NULL.
+		try:
+			vehicle_speed = float(i.attr('speedkmhr'))
+		except:
+			vehicle_speed = None
+		# If the direction is not a valid float, set to NULL.
+		try:
+			vehicle_direction = float(i.attr('heading'))
+		except:
+			vehicle_direction = None
+		# Extend the vehicle_rows list to include a tuple containing this vehicle's most recent
+		# location and other information.
+		vehicle_rows.extend([(
+			service_id,
+			i.attr('id'),
+			i.attr('lon'),
+			i.attr('lat'),
+			vehicle_direction if 0 <= vehicle_direction <= 360 else None,
+			vehicle_speed if vehicle_speed >= 0 else None,
+			request_datetime - datetime.timedelta(seconds = float(i.attr('secssincereport'))),
+			i.attr('predictable') == 'true'
+		)])
+	# Return the vehicle rows, and the epoch time of the API request.
+	return [vehicle_rows, this_request]
