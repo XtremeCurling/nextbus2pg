@@ -2,7 +2,7 @@ from pyquery import PyQuery as pq
 import psycopg2
 import psycopg2.extras
 import uuid
-import route
+import nextbus2pg.route as route
 
 # Get the current "agencyList" from the nextbus API. Upsert to the postgres database.
 def update_agencies(conn):
