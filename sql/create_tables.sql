@@ -33,3 +33,26 @@ CREATE TABLE nextbus.route (
 	CONSTRAINT route_defined_by_agency_and_tag_unq
 		UNIQUE (agency_id, tag)
 );
+
+/*
+Create service table.
+The PK `service_id` is created in a Python script.
+*/
+-- A `route_id` and `tag` uniquely define a service.
+CREATE TABLE nextbus.service (
+	service_id UUID,
+	route_id   UUID,
+	tag        TEXT,
+	name       TEXT,
+	direction  TEXT,
+	use_for_ui BOOLEAN,
+	CONSTRAINT service_pk
+		PRIMARY KEY (service_id),
+	CONSTRAINT service_runs_on_route_fk
+		FOREIGN KEY (route_id)
+		REFERENCES nextbus.route (route_id)
+);
+-- The Python script forces services with NULL `tag`s.
+-- So, use COALESCE to ensure that no duplicates are entered.
+CREATE UNIQUE INDEX service_defined_by_route_and_tag_idx
+	ON nextbus.service (route_id, COALESCE(tag, ''));
