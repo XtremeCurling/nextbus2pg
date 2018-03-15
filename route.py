@@ -1,4 +1,5 @@
 from pyquery import PyQuery as pq
+from lxml import etree
 import requests
 import uuid
 import psycopg2
@@ -108,15 +109,22 @@ def get_vehicle_locations(conn, route, service_dict, route_service_dict, previou
 	agency_id = route[1]
 	route_tag = route[2]
 	# Hit the vehicleLocations endpoint.
-	vehicle_pq = pq(requests.get(
+	vehicle_xml = requests.get(
 		'http://webservices.nextbus.com/service/publicXMLFeed?command=vehicleLocations&a={0}&r={1}&t={2}'.format(
-			agency_id, route_tag, previous_request)).content
+			agency_id, route_tag, previous_request).content
 	)
+	vehicle_pq = pq(vehicle_xml)
+	vehicle_etreee = etree.fromstring(vehicle_xml)
 	# Get the time (in epoch microseconds since 1970) of this API request.
 	# This will be returned along with the vehicle locations.
-	this_request = vehicle_pq.children().not_('vehicle').attr('time')
-	# Convert to a UTC datetime representation. This will be used to populate the location_datetime field.
-	request_datetime = datetime.datetime.utcfromtimestamp(round(float(this_request) / 1000))
+	try:
+		# this_request = vehicle_pq.children().not_('vehicle').attr('time')
+		this_request = vehicle_etree.find('lastTime').get('time')
+		# Convert to a UTC datetime representation. This will be used to populate the location_datetime field.
+		request_datetime = datetime.datetime.utcfromtimestamp(round(float(this_request) / 1000))	
+	except:
+		this_request = 0
+		request_datetime = datetime.datetime.utcnow()
 	# Initiate the list of tuples that will contain the route's vehicle locations.
 	vehicle_rows = []
 	# Loop through each vehicle to create its tuple of column values for postgres.
