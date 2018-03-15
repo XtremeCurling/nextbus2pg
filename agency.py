@@ -229,7 +229,7 @@ def update_vehicle_locations(conn, agency_id, previous_requests):
 		with conn.cursor() as cur:
 			# Wrap postgis command around the lon and lat of each vehicle.
 			vehicle_rows_str = b','.join(cur.mogrify(
-				"(%s, %s, ST_SetSRID(ST_MakePoint(%s, %s), 4326), %s, %s, %s, %s)", i
+				"(%s, %s, ST_SetSRID(ST_MakePoint(%s, %s), 4326), %s::numeric, %s::numeric, %s, %s)", i
 			) for i in vehicle_rows).decode(conn.encoding)
 			# Execute the INSERT command.
 			cur.execute(
