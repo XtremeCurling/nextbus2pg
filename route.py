@@ -1,4 +1,5 @@
 from pyquery import PyQuery as pq
+import requests
 import uuid
 import psycopg2
 import datetime
@@ -10,9 +11,9 @@ def get_services(route):
 	agency_id = route[1]
 	route_tag = route[2]
 	# Hit the routeConfig endpoint.
-	route_config_pq = pq(
-		url = 'http://webservices.nextbus.com/service/publicXMLFeed?command=routeConfig&a={0}&r={1}&verbose=true'.format(
-			agency_id, route_tag
+	route_config_pq = pq(requests.get(
+		'http://webservices.nextbus.com/service/publicXMLFeed?command=routeConfig&a={0}&r={1}&verbose=true'.format(
+			agency_id, route_tag).content
 		)
 	)
 	# Format the route's services as a list of tuples for psycopg2.
@@ -38,9 +39,9 @@ def get_stops(route):
 	agency_id = route[1]
 	route_tag = route[2]
 	# Hit the routeConfig endpoint.
-	route_config_pq = pq(
-		url = 'http://webservices.nextbus.com/service/publicXMLFeed?command=routeConfig&a={0}&r={1}&verbose=true'.format(
-			agency_id, route_tag
+	route_config_pq = pq(requests.get(
+		'http://webservices.nextbus.com/service/publicXMLFeed?command=routeConfig&a={0}&r={1}&verbose=true'.format(
+			agency_id, route_tag).content
 		)
 	)
 	# Format the route's stops as a list of tuples for psycopg2.
@@ -70,9 +71,9 @@ def get_service_stop_orders(conn, route):
 	# Get the current UTC datetime.
 	now = datetime.datetime.utcnow()
 	# Hit the routeConfig endpoint.
-	route_config_pq = pq(
-		url = 'http://webservices.nextbus.com/service/publicXMLFeed?command=routeConfig&a={0}&r={1}&verbose=true'.format(
-			agency_id, route_tag
+	route_config_pq = pq(requests.get(
+		'http://webservices.nextbus.com/service/publicXMLFeed?command=routeConfig&a={0}&r={1}&verbose=true'.format(
+			agency_id, route_tag).content
 		)
 	)
 	# Get all services running on and stops lying on the current route.
@@ -110,9 +111,9 @@ def get_vehicle_locations(conn, route, service_dict, route_service_dict, previou
 	agency_id = route[1]
 	route_tag = route[2]
 	# Hit the vehicleLocations endpoint.
-	vehicle_pq = pq(
-		url = 'http://webservices.nextbus.com/service/publicXMLFeed?command=vehicleLocations&a={0}&r={1}&t={2}'.format(
-			agency_id, route_tag, previous_request
+	vehicle_pq = pq(requests.get(
+		'http://webservices.nextbus.com/service/publicXMLFeed?command=vehicleLocations&a={0}&r={1}&t={2}'.format(
+			agency_id, route_tag, previous_request).content
 		)
 	)
 	# Get the time (in epoch microseconds since 1970) of this API request.

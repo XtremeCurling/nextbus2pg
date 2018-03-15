@@ -1,4 +1,5 @@
 from pyquery import PyQuery as pq
+import requests
 import psycopg2
 import psycopg2.extras
 import uuid
@@ -7,7 +8,9 @@ import route
 # Get the current "agencyList" from the nextbus API. Upsert to the postgres database.
 def update_agencies(conn):
 	# Hit the agencyList endpoint.
-	agency_pq = pq(url = 'http://webservices.nextbus.com/service/publicXMLFeed?command=agencyList')
+	agency_pq = pq(requests.get(
+		'http://webservices.nextbus.com/service/publicXMLFeed?command=agencyList').content
+	)
 	# Format the results as a list of tuples for psycopg2.
 	agency_rows = [(
 		i.attr('tag'),
@@ -32,8 +35,8 @@ def update_agencies(conn):
 # Get an agency's current "routeList" from the nextbus API. Upsert to the postgres database.
 def update_routes(conn, agency_id):
 	# Hit the routeList endpoint.
-	route_pq = pq(
-		url = 'http://webservices.nextbus.com/service/publicXMLFeed?command=routeList&a={0}'.format(agency_id)
+	route_pq = pq(requests.get(
+		'http://webservices.nextbus.com/service/publicXMLFeed?command=routeList&a={0}'.format(agency_id).content
 	)
 	# Format the results as a list of tuples for psycopg2.
 	route_rows = [(
