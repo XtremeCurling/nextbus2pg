@@ -12,7 +12,7 @@ SET search_path = public, postgis, nextbus;
 Create agency table.
 The PK `agency_id` comes from nextbus.
 */
-CREATE TABLE nextbus.agency (
+CREATE TABLE IF NOT EXISTS nextbus.agency (
 	agency_id TEXT,
 	name      TEXT,
 	region    TEXT,
@@ -25,7 +25,7 @@ Create route table.
 The PK `route_id` is created in a Python script.
 */
 -- An `agency_id` and `tag` uniquely define a route.
-CREATE TABLE nextbus.route (
+CREATE TABLE IF NOT EXISTS nextbus.route (
 	route_id  UUID,
 	agency_id TEXT,
 	tag       TEXT,
@@ -44,7 +44,7 @@ Create service table.
 The PK `service_id` is created in a Python script.
 */
 -- A `route_id` and `tag` uniquely define a service.
-CREATE TABLE nextbus.service (
+CREATE TABLE IF NOT EXISTS nextbus.service (
 	service_id UUID,
 	route_id   UUID,
 	tag        TEXT,
@@ -67,7 +67,7 @@ Create stop table.
 The PK `stop_id` is created in a Python script.
 */
 -- A `route_id`, `tag`, and `location` uniquely define a stop.
-CREATE TABLE nextbus.stop (
+CREATE TABLE IF NOT EXISTS nextbus.stop (
 	stop_id  UUID,
 	route_id UUID,
 	tag      TEXT,
@@ -92,7 +92,7 @@ In case this changes day-to-day, a timestamp is saved on every update.
 */
 -- A stop's order on a route-service must be positive.
 -- For a given update, a service can't have 2 stops with the same order.
-CREATE TABLE nextbus.service_stop_order (
+CREATE TABLE IF NOT EXISTS nextbus.service_stop_order (
 	service_id       UUID,
 	stop_id          UUID,
 	stop_order       INTEGER,
@@ -116,7 +116,7 @@ It also records other vehicle information provided by nextbus.
 */
 -- The vehicle_direction must be a valid "degree" angle between 0-360.
 -- The vehicle_speed must be nonnegative.
-CREATE TABLE nextbus.vehicle_location (
+CREATE TABLE IF NOT EXISTS nextbus.vehicle_location (
 	service_id         UUID,
 	vehicle_tag        TEXT,
 	vehicle_location   GEOMETRY(POINT, 4326),
