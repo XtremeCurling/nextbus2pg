@@ -224,19 +224,21 @@ def update_vehicle_locations(conn, agency_id, previous_requests):
 		vehicle_rows.extend(route_vehicle_rows)
 		# Update the previous_requests dict with this latest request time.
 		these_requests[route_id] = request_time
-	with conn.cursor() as cur:
-		# Wrap postgis command around the lon and lat of each vehicle.
-		vehicle_rows_str = b','.join(cur.mogrify(
-			"(%s, %s, ST_SetSRID(ST_MakePoint(%s, %s), 4326), %s, %s, %s, %s)", i
-		) for i in vehicle_rows).decode(conn.encoding)
-		# Execute the INSERT command.
-		cur.execute(
-			"INSERT INTO nextbus.vehicle_location " \
-			+ "(service_id, vehicle_tag, vehicle_location, vehicle_direction, " \
-			+ "vehicle_speed, location_timestamp, is_predictable) " \
-			+ "SELECT DISTINCT ON (service_id, vehicle_tag, location_timestamp) * " \
-			+ "FROM (VALUES " + vehicle_rows_str + ") v(service_id, vehicle_tag, vehicle_location, " \
-			+ "vehicle_direction, vehicle_speed, location_timestamp, is_predictable)"
-		)
+	# If at least 1 vehicle location has been updated since the last request, insert to the db.
+	if len(vehicle_rows) > 0:
+		with conn.cursor() as cur:
+			# Wrap postgis command around the lon and lat of each vehicle.
+			vehicle_rows_str = b','.join(cur.mogrify(
+				"(%s, %s, ST_SetSRID(ST_MakePoint(%s, %s), 4326), %s, %s, %s, %s)", i
+			) for i in vehicle_rows).decode(conn.encoding)
+			# Execute the INSERT command.
+			cur.execute(
+				"INSERT INTO nextbus.vehicle_location " \
+				+ "(service_id, vehicle_tag, vehicle_location, vehicle_direction, " \
+				+ "vehicle_speed, location_timestamp, is_predictable) " \
+				+ "SELECT DISTINCT ON (service_id, vehicle_tag, location_timestamp) * " \
+				+ "FROM (VALUES " + vehicle_rows_str + ") v(service_id, vehicle_tag, vehicle_location, " \
+				+ "vehicle_direction, vehicle_speed, location_timestamp, is_predictable)"
+			)
 	# Return the updated API request epoch times.
 	return these_requests
