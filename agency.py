@@ -36,7 +36,7 @@ def update_agencies(conn):
 def update_routes(conn, agency_id):
 	# Hit the routeList endpoint.
 	route_pq = pq(requests.get(
-		'http://webservices.nextbus.com/service/publicXMLFeed?command=routeList&a={0}'.format(agency_id).content
+		'http://webservices.nextbus.com/service/publicXMLFeed?command=routeList&a={0}'.format(agency_id)).content
 	)
 	# Format the results as a list of tuples for psycopg2.
 	route_rows = [(

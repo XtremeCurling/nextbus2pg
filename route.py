@@ -13,8 +13,7 @@ def get_services(route):
 	# Hit the routeConfig endpoint.
 	route_config_pq = pq(requests.get(
 		'http://webservices.nextbus.com/service/publicXMLFeed?command=routeConfig&a={0}&r={1}&verbose=true'.format(
-			agency_id, route_tag).content
-		)
+			agency_id, route_tag)).content
 	)
 	# Format the route's services as a list of tuples for psycopg2.
 	service_rows = [(
@@ -41,8 +40,7 @@ def get_stops(route):
 	# Hit the routeConfig endpoint.
 	route_config_pq = pq(requests.get(
 		'http://webservices.nextbus.com/service/publicXMLFeed?command=routeConfig&a={0}&r={1}&verbose=true'.format(
-			agency_id, route_tag).content
-		)
+			agency_id, route_tag)).content
 	)
 	# Format the route's stops as a list of tuples for psycopg2.
 	# These will be passed to the mogrify function so that postgis commands can be wrapped around them.
@@ -73,8 +71,7 @@ def get_service_stop_orders(conn, route):
 	# Hit the routeConfig endpoint.
 	route_config_pq = pq(requests.get(
 		'http://webservices.nextbus.com/service/publicXMLFeed?command=routeConfig&a={0}&r={1}&verbose=true'.format(
-			agency_id, route_tag).content
-		)
+			agency_id, route_tag)).content
 	)
 	# Get all services running on and stops lying on the current route.
 	with conn.cursor() as cur:
@@ -113,8 +110,7 @@ def get_vehicle_locations(conn, route, service_dict, route_service_dict, previou
 	# Hit the vehicleLocations endpoint.
 	vehicle_pq = pq(requests.get(
 		'http://webservices.nextbus.com/service/publicXMLFeed?command=vehicleLocations&a={0}&r={1}&t={2}'.format(
-			agency_id, route_tag, previous_request).content
-		)
+			agency_id, route_tag, previous_request)).content
 	)
 	# Get the time (in epoch microseconds since 1970) of this API request.
 	# This will be returned along with the vehicle locations.
