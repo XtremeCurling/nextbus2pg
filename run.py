@@ -2,8 +2,8 @@ import sys
 import pytz
 import datetime
 from time import sleep
-import nextbus2pg.connect as connect
-import nextbus2pg.agency as agency
+import connect
+import agency
 
 ### This script runs through the entire nextbus2pg pipeline:
 ###   1. Connect to the DB.
@@ -23,28 +23,24 @@ import nextbus2pg.agency as agency
 #   - before you exhaust your storage or rack up crazy $$$ on a DB instance.
 
 # Create a dict from the sys args.
-# Credit goes entirely to user RobinCheptileh's comment at
-#    https://gist.github.com/dideler/2395703.
+# Credit goes entirely to https://gist.github.com/dideler/2395703.
 def getopts(argv):
-    opts = {}
-    while argv:
-        if argv[0][0] == '-':
-            if argv[0] in opts:
-                opts[argv[0]].append(argv[1])
-            else:
-                opts[argv[0]] = [argv[1]]
-        argv = argv[1:] 
+    opts = {}  # Empty dictionary to store key-value pairs.
+    while argv:  # While there are arguments left to parse...
+        if argv[0][0] == '-':  # Found a "-name value" pair.
+            opts[argv[0]] = argv[1]  # Add key and value to the dictionary.
+        argv = argv[1:]  # Reduce the argument list by copying it starting from index 1.
     return opts
 
 # Process the sysargs.
 sysargs = getopts(sys.argv)
 # Extract the individual opts from the sysargs.
-host      = sysargs['h']
-db        = sysargs['d']
-user      = sysargs['U']
-agency_id = sysargs['a']
-tzone     = sysargs['z']
-resttime  = sysargs['r']
+host      = sysargs['-h']
+db        = sysargs['-d']
+user      = sysargs['-U']
+agency_id = sysargs['-a']
+tzone     = sysargs['-z']
+resttime  = sysargs['-r']
 
 # Pass the 'timezone' string to pytz.timezone().
 user_tz = pytz.timezone(tzone)
@@ -83,7 +79,7 @@ while True:
 	# Until midnight, keep updating the agency's vehicle locations.
 	latest_vehicle_update = latest_route_update
 	while latest_vehicle_update == latest_route_update:
-		request_times = update_vehicle_locations(
+		request_times = agency.update_vehicle_locations(
 			conn, agency_id, request_times
 		)
 		# Record the date.

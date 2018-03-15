@@ -76,7 +76,7 @@ def get_service_stop_orders(conn, route):
 		)
 	)
 	# Get all services running on and stops lying on the current route.
-	with cur as conn.cursor():
+	with conn.cursor() as cur:
 		# Get services.
 		cur.execute("SELECT tag, service_id FROM nextbus.service WHERE route_id = %s", (route_id,))
 		services = cur.fetchall()

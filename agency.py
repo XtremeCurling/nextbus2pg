@@ -2,7 +2,7 @@ from pyquery import PyQuery as pq
 import psycopg2
 import psycopg2.extras
 import uuid
-import nextbus2pg.route as route
+import route
 
 # Get the current "agencyList" from the nextbus API. Upsert to the postgres database.
 def update_agencies(conn):
@@ -24,7 +24,7 @@ def update_agencies(conn):
 				(name, region) = (EXCLUDED.name, EXCLUDED.region)
 	'''
 	# Execute the UPSERT command.
-	with cur as conn.cursor():
+	with conn.cursor() as cur:
 		psycopg2.extras.execute_values(
 			cur, upsert_sql, agency_rows
 		)
@@ -52,7 +52,7 @@ def update_routes(conn, agency_id):
 				(name) = (EXCLUDED.name)
 	'''
 	# Execute the UPSERT command.
-	with cur as conn.cursor()
+	with conn.cursor() as cur:
 		psycopg2.extras.execute_values(
 			cur, upsert_sql, route_rows
 		)
@@ -61,7 +61,7 @@ def update_routes(conn, agency_id):
 # Upsert to the postgres database.
 def update_services(conn, agency_id):
 	# Get all of the agency's routes with their UUIDs.
-	with cur as conn.cursor():
+	with conn.cursor() as cur:
 		cur.execute("SELECT * FROM nextbus.route WHERE agency_id = %s", (agency_id,))
 		routes = cur.fetchall()
 	# Initiate the list that will contain all of the service rows.
@@ -80,7 +80,7 @@ def update_services(conn, agency_id):
 				= (EXCLUDED.name, EXCLUDED.direction, EXCLUDED.use_for_ui)
 	'''
 	# Execute the UPSERT command.
-	with cur as conn.cursor():
+	with conn.cursor() as cur:
 		psycopg2.extras.execute_values(
 			cur, upsert_sql, service_rows
 		)
@@ -89,7 +89,7 @@ def update_services(conn, agency_id):
 # Upsert to the postgres database.
 def update_stops(conn, agency_id):
 	# Get all of the agency's routes with their UUIDs.
-	with cur as conn.cursor():
+	with conn.cursor() as cur:
 		cur.execute("SELECT * FROM nextbus.route WHERE agency_id = %s", (agency_id,))
 		routes = cur.fetchall()
 	# Initiate the list that will contain all of the stop tuples.
@@ -135,7 +135,7 @@ def update_stops(conn, agency_id):
 		stop_rows.extend(new_stop_row)
 	# Execute an UPSERT command.
 	# If stop with same route, tag, and location is already in database, update its name.
-	with cur as conn.cursor():
+	with conn.cursor() as cur:
 		# Wrap postgis command around the lon and lat of each stop.
 		stop_rows_str = ','.join(cur.mogrify(
 			"(%s, %s, %s, %s, ST_SetSRID(ST_MakePoint(%s, %s), 4326))", i
@@ -144,7 +144,7 @@ def update_stops(conn, agency_id):
 			"INSERT INTO nextbus.stop (stop_id, route_id, tag, name, location) " \
 			+ "SELECT DISTINCT ON (route_id, tag, location) * " \
 			+ "FROM (VALUES " + stop_rows_str + ") v(stop_id, route_id, tag, name, location) " \
-			+ "ON CONFLICT (route_id, tag, COALESCE(location, '')) " \
+			+ "ON CONFLICT (route_id, tag, COALESCE(TEXT(location), '')) " \
 			+ "DO UPDATE SET (name) = (EXCLUDED.name)"
 		)
 
@@ -152,7 +152,7 @@ def update_stops(conn, agency_id):
 # Upsert to the postgres database.
 def update_service_stop_orders(conn, agency_id):
 	# Get all of the agency's routes and services with their UUIDs.
-	with cur as conn.cursor():
+	with conn.cursor() as cur:
 		cur.execute("SELECT * FROM nextbus.route WHERE agency_id = %s", (agency_id,))
 		routes = cur.fetchall()
 		cur.execute(
@@ -174,7 +174,7 @@ def update_service_stop_orders(conn, agency_id):
 			DO NOTHING
 	'''
 	# Execute the UPSERT command.
-	with cur as conn.cursor():
+	with conn.cursor() as cur:
 		psycopg2.extras.execute_values(
 			cur, upsert_sql, order_rows
 		)
@@ -183,7 +183,7 @@ def update_service_stop_orders(conn, agency_id):
 # Insert to the postgres database.
 def update_vehicle_locations(conn, agency_id, previous_requests):
 	# Get all of the agency's routes and services with their UUIDs.
-	with cur as conn.cursor():
+	with conn.cursor() as cur:
 		cur.execute("SELECT * FROM nextbus.route WHERE agency_id = %s", (agency_id,))
 		routes = cur.fetchall()
 		cur.execute(
@@ -214,14 +214,14 @@ def update_vehicle_locations(conn, agency_id, previous_requests):
 		except:
 			route_previous_request = 0
 		# For each route, find the updated vehicle locations. Get also the updated API request times.
-		[route_vehicle_rows, request_time] = get_vehicle_locations(
+		[route_vehicle_rows, request_time] = route.get_vehicle_locations(
 			conn = conn, route = r, service_dict = service_dict, \
 			route_service_dict = route_service_dict, previous_request = route_previous_request)
 		# Add these new vehicle rows to the agency-wide list.
-		vehicle_rows.extend(new_vehicle_rows)
+		vehicle_rows.extend(route_vehicle_rows)
 		# Update the previous_requests dict with this latest request time.
 		these_requests[route_id] = request_time
-	with cur as conn.cursor():
+	with conn.cursor() as cur:
 		# Wrap postgis command around the lon and lat of each vehicle.
 		vehicle_rows_str = ','.join(cur.mogrify(
 			"(%s, %s, ST_SetSRID(ST_MakePoint(%s, %s), 4326), %s, %s, %s, %s)", i
