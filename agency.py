@@ -140,9 +140,9 @@ def update_stops(conn, agency_id):
 	# If stop with same route, tag, and location is already in database, update its name.
 	with conn.cursor() as cur:
 		# Wrap postgis command around the lon and lat of each stop.
-		stop_rows_str = ','.join(cur.mogrify(
+		stop_rows_str = b','.join(cur.mogrify(
 			"(%s, %s, %s, %s, ST_SetSRID(ST_MakePoint(%s, %s), 4326))", i
-		) for i in stop_rows)
+		) for i in stop_rows).decode(conn.encoding)
 		cur.execute(
 			"INSERT INTO nextbus.stop (stop_id, route_id, tag, name, location) " \
 			+ "SELECT DISTINCT ON (route_id, tag, location) * " \
@@ -226,9 +226,9 @@ def update_vehicle_locations(conn, agency_id, previous_requests):
 		these_requests[route_id] = request_time
 	with conn.cursor() as cur:
 		# Wrap postgis command around the lon and lat of each vehicle.
-		vehicle_rows_str = ','.join(cur.mogrify(
+		vehicle_rows_str = b','.join(cur.mogrify(
 			"(%s, %s, ST_SetSRID(ST_MakePoint(%s, %s), 4326), %s, %s, %s, %s)", i
-		) for i in vehicle_rows)
+		) for i in vehicle_rows).decode(conn.encoding)
 		# Execute the INSERT command.
 		cur.execute(
 			"INSERT INTO nextbus.vehicle_location " \
