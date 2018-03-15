@@ -114,7 +114,7 @@ def get_vehicle_locations(conn, route, service_dict, route_service_dict, previou
 	)
 	# Get the time (in epoch microseconds since 1970) of this API request.
 	# This will be returned along with the vehicle locations.
-	this_request = vehicle_pq('lastTime').attr('time')
+	this_request = vehicle_pq.children().not_('vehicle').attr('time')
 	# Convert to a UTC datetime representation. This will be used to populate the location_datetime field.
 	request_datetime = datetime.datetime.utcfromtimestamp(round(float(this_request) / 1000))
 	# Initiate the list of tuples that will contain the route's vehicle locations.
