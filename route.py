@@ -22,7 +22,7 @@ def get_services(route):
 		i.attr('tag'),
 		i.attr('title'),
 		i.attr('name'),
-		i.attr('useforui') == 'true'
+		i.attr('useForUI') == 'true'
 	) for i in route_config_pq.items('direction')]
 	# Include a NULL service tag, used for vehicles that are not currently running a service.
 	service_rows.extend([(uuid.uuid4(), route_id, None, None, None, False)])
@@ -126,16 +126,16 @@ def get_vehicle_locations(conn, route, service_dict, route_service_dict, previou
 		#   (2) If (1) doesn't work, try to find 'dirTag' in the agency-wide service_dict.
 		#   (3) If (2) doesn't work, skip to the next vehicle in the for loop.
 		try:
-			service_id = route_service_dict[i.attr('dirtag')]
+			service_id = route_service_dict[i.attr('dirTag')]
 		except:
 			try:
-				service_id = service_dict[i.attr('dirtag')]
+				service_id = service_dict[i.attr('dirTag')]
 			except:
-				print(i.attr('dirtag') + " is not a valid service tag for agency " + agency_id)
+				print(i.attr('dirTag') + " is not a valid service tag for agency " + agency_id)
 				continue
 		# If the speed is not a valid float, set to NULL.
 		try:
-			vehicle_speed = float(i.attr('speedkmhr'))
+			vehicle_speed = float(i.attr('speedKmHr'))
 		except:
 			vehicle_speed = None
 		# If the direction is not a valid float, set to NULL.
@@ -152,7 +152,7 @@ def get_vehicle_locations(conn, route, service_dict, route_service_dict, previou
 			i.attr('lat'),
 			vehicle_direction if 0 <= vehicle_direction <= 360 else None,
 			vehicle_speed if vehicle_speed >= 0 else None,
-			request_datetime - datetime.timedelta(seconds = float(i.attr('secssincereport'))),
+			request_datetime - datetime.timedelta(seconds = float(i.attr('secsSinceReport'))),
 			i.attr('predictable') == 'true'
 		)])
 	# Return the vehicle rows, and the epoch time of the API request.

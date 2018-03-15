@@ -15,7 +15,7 @@ def update_agencies(conn):
 	agency_rows = [(
 		i.attr('tag'),
 		i.attr('title'),
-		i.attr('regiontitle')
+		i.attr('regionTitle')
 	) for i in agency_pq.items('agency')]
 	# Create the UPSERT command.
 	# If agency is already in database, update its name and region.
