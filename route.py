@@ -123,8 +123,8 @@ def get_vehicle_locations(conn, route, service_dict, route_service_dict, previou
 		# Convert to a UTC datetime representation. This will be used to populate the location_datetime field.
 		request_datetime = datetime.datetime.utcfromtimestamp(round(float(this_request) / 1000))	
 	except:
-		this_request = 0
-		request_datetime = datetime.datetime.utcnow()
+		this_request = '0'
+		request_datetime = datetime.datetime.utcnow().replace(microsecond = 0)
 	# Initiate the list of tuples that will contain the route's vehicle locations.
 	vehicle_rows = []
 	# Loop through each vehicle to create its tuple of column values for postgres.
@@ -158,8 +158,8 @@ def get_vehicle_locations(conn, route, service_dict, route_service_dict, previou
 			i.attr('id'),
 			i.attr('lon'),
 			i.attr('lat'),
-			vehicle_direction if 0 <= vehicle_direction <= 360 else None,
-			vehicle_speed if vehicle_speed >= 0 else None,
+			vehicle_direction if (vehicle_direction is None) or (0 <= vehicle_direction <= 360) else None,
+			vehicle_speed if (vehicle_speed is None) or (vehicle_speed >= 0) else None,
 			request_datetime - datetime.timedelta(seconds = float(i.attr('secsSinceReport'))),
 			i.attr('predictable') == 'true'
 		)])

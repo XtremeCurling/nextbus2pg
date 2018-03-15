@@ -215,7 +215,7 @@ def update_vehicle_locations(conn, agency_id, previous_requests):
 		try:
 			route_previous_request = previous_requests[route_id]
 		except:
-			route_previous_request = 0
+			route_previous_request = '0'
 		# For each route, find the updated vehicle locations. Get also the updated API request times.
 		[route_vehicle_rows, request_time] = route.get_vehicle_locations(
 			conn = conn, route = r, service_dict = service_dict, \
