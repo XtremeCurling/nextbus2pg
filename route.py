@@ -111,8 +111,7 @@ def get_vehicle_locations(conn, route, service_dict, route_service_dict, previou
 	# Hit the vehicleLocations endpoint.
 	vehicle_xml = requests.get(
 		'http://webservices.nextbus.com/service/publicXMLFeed?command=vehicleLocations&a={0}&r={1}&t={2}'.format(
-			agency_id, route_tag, previous_request).content
-	)
+			agency_id, route_tag, previous_request)).content
 	vehicle_pq = pq(vehicle_xml)
 	vehicle_etreee = etree.fromstring(vehicle_xml)
 	# Get the time (in epoch microseconds since 1970) of this API request.
