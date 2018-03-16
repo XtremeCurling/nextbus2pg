@@ -1,4 +1,4 @@
-from pyquery import PyQuery as pq
+from lxml import etree
 import requests
 import psycopg2
 import psycopg2.extras
@@ -8,15 +8,16 @@ import route
 # Get the current "agencyList" from the nextbus API. Upsert to the postgres database.
 def update_agencies(conn):
 	# Hit the agencyList endpoint.
-	agency_pq = pq(requests.get(
-		'http://webservices.nextbus.com/service/publicXMLFeed?command=agencyList').content
-	)
+	agency_xml = requests.get(
+		'http://webservices.nextbus.com/service/publicXMLFeed?command=agencyList'
+	).content
+	agency_etree = etree.fromstring(agency_xml)
 	# Format the results as a list of tuples for psycopg2.
 	agency_rows = [(
-		i.attr('tag'),
-		i.attr('title'),
-		i.attr('regionTitle')
-	) for i in agency_pq.items('agency')]
+		i.get('tag'),
+		i.get('title'),
+		i.get('regionTitle')
+	) for i in agency_etree.iter('agency')]
 	# Create the UPSERT command.
 	# If agency is already in database, update its name and region.
 	upsert_sql = '''
@@ -35,16 +36,19 @@ def update_agencies(conn):
 # Get an agency's current "routeList" from the nextbus API. Upsert to the postgres database.
 def update_routes(conn, agency_id):
 	# Hit the routeList endpoint.
-	route_pq = pq(requests.get(
-		'http://webservices.nextbus.com/service/publicXMLFeed?command=routeList&a={0}'.format(agency_id)).content
-	)
+	route_xml = requests.get(
+		'http://webservices.nextbus.com/service/publicXMLFeed?command=routeList&a={0}'.format(
+			agency_id
+		)
+	).content
+	route_etree = etree.fromstring(route_xml)
 	# Format the results as a list of tuples for psycopg2.
 	route_rows = [(
 		uuid.uuid4(),
 		agency_id,
-		i.attr('tag'),
-		i.attr('title')
-	) for i in route_pq.items('route')]
+		i.get('tag'),
+		i.get('title')
+	) for i in route_etree.iter('route')]
 	# Create the UPSERT command.
 	# If route is already in database, update its name.
 	upsert_sql = '''
