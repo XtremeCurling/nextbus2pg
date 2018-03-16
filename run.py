@@ -47,6 +47,20 @@ user_tz = pytz.timezone(tzone)
 # Convert 'resttime' to a float.
 resttime = float(resttime)
 
+# Update an agency's routes, services, stops, and service-stop orders.
+# Allow to try a number of times, since sometimes some route's services
+#   or stops are not added on the first try.
+#   TODO: this is a temporary messy workaround.
+def update_agency_info(conn, agency_id, n_tries, current_try = 1):
+	if current_try <= n_tries:
+		try:
+			agency.update_routes(conn, agency_id)
+			agency.update_services(conn, agency_id)
+			agency.update_stops(conn, agency_id)
+			agency.update_service_stop_orders(conn, agency_id)
+		except:
+			update_agency_info(conn, agency_id, n_tries, current_try + 1)
+
 # Connect to the PG database.
 # host, db, and user should be passed through the sysargs using flags
 #   -h, -d, and -U, respectively.
@@ -65,14 +79,8 @@ agency.update_agencies(conn)
 request_times = dict()
 # Begin the infinite loop.
 while True:
-	# Update the agency's routes.
-	agency.update_routes(conn, agency_id)
-	# Update the agency's services.
-	agency.update_services(conn, agency_id)
-	# Update the agency's stops.
-	agency.update_stops(conn, agency_id)
-	# Update the agency's servic-stop orders.
-	agency.update_service_stop_orders(conn, agency_id)
+	# Update the agency's info. Try up to 10 times before throwing an error.
+	update_agency_info(conn, agency_id, n_tries = 10)
 	# Record the date in the timezone passed as a sysarg.
 	utc_now = datetime.datetime.utcnow().replace(tzinfo = pytz.utc)
 	latest_route_update = utc_now.astimezone(user_tz).date()
@@ -85,6 +93,8 @@ while True:
 		latest_vehicle_update = utc_now.astimezone(user_tz).date()
 		# Rest before continuing.
 		sleep(resttime)
+		# If vehicle update fails, wait and try again.
+		#   This is to catch potential API downtime.
 		try:
 			request_times = agency.update_vehicle_locations(
 				conn, agency_id, request_times
