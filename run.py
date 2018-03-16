@@ -79,12 +79,15 @@ while True:
 	# Until midnight, keep updating the agency's vehicle locations.
 	latest_vehicle_update = latest_route_update
 	while latest_vehicle_update == latest_route_update:
-		request_times = agency.update_vehicle_locations(
-			conn, agency_id, request_times
-		)
 		# Record the date.
 		#   If midnight has passed, go update the other agency info.
 		utc_now = datetime.datetime.utcnow().replace(tzinfo = pytz.utc)
 		latest_vehicle_update = utc_now.astimezone(user_tz).date()
-		# Rest before the next iteration.
+		# Rest before continuing.
 		sleep(resttime)
+		try:
+			request_times = agency.update_vehicle_locations(
+				conn, agency_id, request_times
+			)
+		except:
+			continue
