@@ -1,4 +1,4 @@
-# nextbus2pg: archive Nextbus real-time vehicle location data
+# Overview
 
-This directory contains SQL scripts that set up a postgres database with tables to store Nextbus real-time vehicle location data, and Python scripts to automatically hit the Nextbus API endpoints and store real-time data in the postgres database.
+This directory contains scripts that repeatedly get real-time vehicle location data from the Nextbus API and store it in a set of postgres tables.
 
