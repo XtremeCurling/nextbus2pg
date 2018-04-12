@@ -1,36 +1,50 @@
+"""Run through the entire nextbus2pg pipeline:
+  1. Connect to the DB.
+  2. Update the nextbus agency list.
+  3. For the specific agency passed as a sysarg:
+    a. Update the routes.
+    b. Update the services (called "direction"s by nextbus).
+    c. Update the stops.
+    d. Update the order in which stops lie on route-services.
+    e. Update the most recent vehicle locations for each route.
+
+3e will loop indefinitely with a rest (passed as sysarg) between 
+iterations.
+
+3a-d will repeat at the beginning of every day in the timezone passed
+as a sysarg.
+"""
+
+# PLEASE TAKE NOTE
+#
+# Since this script loops infinitely, it's up to the user to kill the
+# process. PLEASE REMEMBER TO KILL THE SCRIPT before you exhaust your
+# storage or rack up crazy $$$ on a DB instance.
+
 import sys
 import pytz
 import datetime
 from time import sleep
+
 import connect
 import agency
 
-### This script runs through the entire nextbus2pg pipeline:
-###   1. Connect to the DB.
-###   2. Update the nextbus agency list.
-###   3. For the specific agency passed as a sysarg:
-###     a. Update the routes.
-###     b. Update the services (called "direction"s by nextbus).
-###     c. Update the stops.
-###     d. Update the order in which stops lie on route-services.
-###     e. Update the most recent vehicle locations for each route.
-### 3e will loop indefinitely with a rest (passed as sysarg) between iterations.
-### 3a-d will repeat at the beginning of every day in the timezone passed as a sysarg.
-
-# PLEASE TAKE NOTE
-# Since this script loops infinitely, it's up to the user to kill the process.
-# PLEASE REMEMBER TO KILL THE SCRIPT
-#   - before you exhaust your storage or rack up crazy $$$ on a DB instance.
 
 # Create a dict from the sys args.
 # Credit goes entirely to https://gist.github.com/dideler/2395703.
 def getopts(argv):
-    opts = {}  # Empty dictionary to store key-value pairs.
-    while argv:  # While there are arguments left to parse...
-        if argv[0][0] == '-':  # Found a "-name value" pair.
-            opts[argv[0]] = argv[1]  # Add key and value to the dictionary.
-        argv = argv[1:]  # Reduce the argument list by copying it starting from index 1.
+    # Empty dictionary to store key-value pairs.
+    opts = {}
+    # While there are arguments left to parse...
+    while argv:
+        # Found a "-name value" pair.
+        if argv[0][0] == '-':
+            # Add key and value to the dictionary.
+            opts[argv[0]] = argv[1]
+        # Reduce the argument list by copying it starting from index 1.
+        argv = argv[1:]
     return opts
+
 
 # Process the sysargs.
 sysargs = getopts(sys.argv)
@@ -46,6 +60,7 @@ resttime  = sysargs['-r']
 user_tz = pytz.timezone(tzone)
 # Convert 'resttime' to a float.
 resttime = float(resttime)
+
 
 # Update an agency's routes, services, stops, and service-stop orders.
 # Allow to try a number of times, since sometimes some route's services
@@ -72,14 +87,17 @@ conn = connect.pgconnect(
     pguser = user
 )
 
+
 # Update the nextbus agency list.
 agency.update_agencies(conn)
 # Set `request_times` to an empty dict.
-#   This will be updated every time the "vehicleLocations" endpoint is hit.
+#   This will be updated every time the "vehicleLocations" endpoint is
+#     hit.
 request_times = dict()
 # Begin the infinite loop.
 while True:
-    # Update the agency's info. Try up to 10 times before throwing an error.
+    # Update the agency's info. Try up to 10 times before throwing an
+    #   error.
     update_agency_info(conn, agency_id, n_tries = 10)
     # Record the date in the timezone passed as a sysarg.
     utc_now = datetime.datetime.utcnow().replace(tzinfo = pytz.utc)

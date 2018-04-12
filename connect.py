@@ -1,6 +1,8 @@
 import urllib
+
 import psycopg2
 import psycopg2.extras
+
 
 # Connect to a postgres database. Tweak some things.
 def pgconnect(pghost, pgdb, pguser):
