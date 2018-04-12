@@ -52,14 +52,14 @@ resttime = float(resttime)
 #   or stops are not added on the first try.
 #   TODO: this is a temporary messy workaround.
 def update_agency_info(conn, agency_id, n_tries, current_try = 1):
-	if current_try <= n_tries:
-		try:
-			agency.update_routes(conn, agency_id)
-			agency.update_services(conn, agency_id)
-			agency.update_stops(conn, agency_id)
-			agency.update_service_stop_orders(conn, agency_id)
-		except:
-			update_agency_info(conn, agency_id, n_tries, current_try + 1)
+    if current_try <= n_tries:
+        try:
+            agency.update_routes(conn, agency_id)
+            agency.update_services(conn, agency_id)
+            agency.update_stops(conn, agency_id)
+            agency.update_service_stop_orders(conn, agency_id)
+        except:
+            update_agency_info(conn, agency_id, n_tries, current_try + 1)
 
 # Connect to the PG database.
 # host, db, and user should be passed through the sysargs using flags
@@ -67,9 +67,9 @@ def update_agency_info(conn, agency_id, n_tries, current_try = 1):
 # Make sure you have a ~/.pgpass file that includes this db instance.
 #   This is where the port and password will be obtained.
 conn = connect.pgconnect(
-	pghost = host,
-	pgdb   = db,
-	pguser = user
+    pghost = host,
+    pgdb   = db,
+    pguser = user
 )
 
 # Update the nextbus agency list.
@@ -79,25 +79,25 @@ agency.update_agencies(conn)
 request_times = dict()
 # Begin the infinite loop.
 while True:
-	# Update the agency's info. Try up to 10 times before throwing an error.
-	update_agency_info(conn, agency_id, n_tries = 10)
-	# Record the date in the timezone passed as a sysarg.
-	utc_now = datetime.datetime.utcnow().replace(tzinfo = pytz.utc)
-	latest_route_update = utc_now.astimezone(user_tz).date()
-	# Until midnight, keep updating the agency's vehicle locations.
-	latest_vehicle_update = latest_route_update
-	while latest_vehicle_update == latest_route_update:
-		# Record the date.
-		#   If midnight has passed, go update the other agency info.
-		utc_now = datetime.datetime.utcnow().replace(tzinfo = pytz.utc)
-		latest_vehicle_update = utc_now.astimezone(user_tz).date()
-		# Rest before continuing.
-		sleep(resttime)
-		# If vehicle update fails, wait and try again.
-		#   This is to catch potential API downtime.
-		try:
-			request_times = agency.update_vehicle_locations(
-				conn, agency_id, request_times
-			)
-		except:
-			continue
+    # Update the agency's info. Try up to 10 times before throwing an error.
+    update_agency_info(conn, agency_id, n_tries = 10)
+    # Record the date in the timezone passed as a sysarg.
+    utc_now = datetime.datetime.utcnow().replace(tzinfo = pytz.utc)
+    latest_route_update = utc_now.astimezone(user_tz).date()
+    # Until midnight, keep updating the agency's vehicle locations.
+    latest_vehicle_update = latest_route_update
+    while latest_vehicle_update == latest_route_update:
+        # Record the date.
+        #   If midnight has passed, go update the other agency info.
+        utc_now = datetime.datetime.utcnow().replace(tzinfo = pytz.utc)
+        latest_vehicle_update = utc_now.astimezone(user_tz).date()
+        # Rest before continuing.
+        sleep(resttime)
+        # If vehicle update fails, wait and try again.
+        #   This is to catch potential API downtime.
+        try:
+            request_times = agency.update_vehicle_locations(
+                conn, agency_id, request_times
+            )
+        except:
+            continue
