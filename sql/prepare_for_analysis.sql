@@ -11,8 +11,15 @@ DELETE FROM nextbus.vehicle_location vl1
         AND vl1.ctid < vl2.ctid; -- Keep only the most recent record
 
 /*
-Create uniqueness index on the set of fields (service_id, vehicle_tag,
-location_timestamp)
+Create indexes on fields to be used in WHERE and GROUP BY clauses.
 */
-CREATE UNIQUE INDEX location_defined_by_service_vehicle_timestamp_idx
-    ON nextbus.vehicle_location (service_id, vehicle_tag, location_timestamp);
+CREATE INDEX vehicle_location_service_idx
+	ON nextbus.vehicle_location (service_id);
+CREATE INDEX vehicle_location_tag_idx
+	ON nextbus.vehicle_location (vehicle_tag);
+CREATE INDEX vehicle_location_location_idx
+	ON nextbus.vehicle_location USING GIST (vehicle_location);
+CREATE INDEX vehicle_location_timestamp_idx
+	ON nextbus.vehicle_location (location_timestamp);
+CREATE INDEX vehicle_location_predictable_idx
+	ON nextbus.vehicle_location (is_predictable);
