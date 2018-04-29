@@ -112,23 +112,14 @@ CREATE TABLE IF NOT EXISTS nextbus.service_stop_order (
 /*
 Create vehicle_location table.
 This table shows every updated vehicle GPS location from nextbus.
-It also records other vehicle information provided by nextbus.
 */
--- The vehicle_direction must be a valid "degree" angle between 0-360.
--- The vehicle_speed must be nonnegative.
 CREATE TABLE IF NOT EXISTS nextbus.vehicle_location (
 	service_id         UUID,
 	vehicle_tag        TEXT,
 	vehicle_location   GEOMETRY(POINT, 4326),
-	vehicle_direction  NUMERIC,
-	vehicle_speed      NUMERIC,
 	location_timestamp TIMESTAMP,
 	is_predictable     BOOLEAN,
 	CONSTRAINT vehicle_provides_service_fk
 		FOREIGN KEY (service_id)
-		REFERENCES nextbus.service (service_id),
-	CONSTRAINT vehicle_direction_is_angle_chk
-		CHECK (vehicle_direction  BETWEEN 0 AND 360),
-	CONSTRAINT vehicle_speed_is_nonnegative_chk
-		CHECK (vehicle_speed >= 0)
+		REFERENCES nextbus.service (service_id)
 );
