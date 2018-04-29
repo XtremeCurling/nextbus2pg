@@ -305,22 +305,19 @@ def update_vehicle_locations(conn, agency_id, previous_requests):
             # Wrap postgis command around the lon and lat of each
             # vehicle.
             vehicle_rows_str = b','.join(cur.mogrify(
-                "(%s, %s, ST_SetSRID(ST_MakePoint(%s, %s), 4326), "
-                + "%s::numeric, %s::numeric, %s, %s)",
+                "(%s, %s, ST_SetSRID(ST_MakePoint(%s, %s), 4326), %s, %s)",
                 i
             ) for i in vehicle_rows).decode(conn.encoding)
             # Execute the INSERT command.
             cur.execute(
                 "INSERT INTO nextbus.vehicle_location "
                 + "(service_id, vehicle_tag, vehicle_location, "
-                + "vehicle_direction, vehicle_speed, location_timestamp, "
-                + "is_predictable) "
+                + "location_timestamp, is_predictable) "
                 + "SELECT DISTINCT ON "
                 + "(service_id, vehicle_tag, location_timestamp) * "
                 + "FROM (VALUES "
                 + vehicle_rows_str
                 + ") v(service_id, vehicle_tag, vehicle_location, "
-                + "vehicle_direction, vehicle_speed, "
                 + "location_timestamp, is_predictable)"
             )
     # Return the updated API request epoch times.

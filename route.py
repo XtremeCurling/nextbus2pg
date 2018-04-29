@@ -192,16 +192,6 @@ def get_vehicle_locations(conn, route, service_dict,
                     + agency_id
                 )
                 continue
-        # If the speed is not a valid float, set to NULL.
-        try:
-            vehicle_speed = float(i.get('speedKmHr'))
-        except:
-            vehicle_speed = None
-        # If the direction is not a valid float, set to NULL.
-        try:
-            vehicle_direction = float(i.get('heading'))
-        except:
-            vehicle_direction = None
         # Extend the vehicle_rows list to include a tuple containing
         # this vehicle's most recent location and other information.
         vehicle_rows.extend([(
@@ -209,8 +199,6 @@ def get_vehicle_locations(conn, route, service_dict,
             i.get('id'),
             i.get('lon'),
             i.get('lat'),
-            vehicle_direction if (vehicle_direction is None) or (0 <= vehicle_direction <= 360) else None,
-            vehicle_speed if (vehicle_speed is None) or (vehicle_speed >= 0) else None,
             request_datetime - datetime.timedelta(seconds=float(i.get('secsSinceReport'))),
             i.get('predictable') == 'true'
         )])
