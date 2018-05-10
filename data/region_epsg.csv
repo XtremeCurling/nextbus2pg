@@ -1,0 +1,25 @@
+region,epsg,units
+California-Northern,2227,ft
+California-Southern,2229,ft
+District of Columbia,2283,ft
+Florida,2237,ft
+Georgia,2240,ft
+Indiana,2244,ft
+Iowa,3418,ft
+Kentucky,2246,ft
+Maryland,2248,ft
+Massachusetts,2249,ft
+Mississippi,2255,ft
+Nevada,3422,ft
+New Hampshire,3437,ft
+New Jersey,3424,ft
+New York,2260,ft
+North Carolina,2264,ft
+Ontario,3161,m
+Oregon,2269,ft
+Other,,
+Pennsylvania,2272,ft
+Quebec,32198,m
+Texas,2277,ft
+Virginia,2283,ft
+Washington,2285,ft
